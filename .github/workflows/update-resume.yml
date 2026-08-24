@@ -1,0 +1,66 @@
+name: Update resume page
+
+on:
+  push:
+    paths:
+      - '.github/workflows/update-resume.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Update page and download
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          path = Path('index.html')
+          text = path.read_text(encoding='utf-8')
+
+          # Point the existing Download résumé button to the new PDF file.
+          text = re.sub(
+              r'(<a class="download-btn" href=")data:application/pdf;base64,[^"]+("[^>]*download="Lydie-Ayrault-Resume\.pdf"[^>]*>)',
+              r'\1Lydie-Ayrault.pdf\2',
+              text,
+              count=1,
+              flags=re.S,
+          )
+
+          # Remove the colleague-feedback section for now.
+          text = re.sub(
+              r'\n\s*<section class="feedback">.*?</section>\s*',
+              '\n',
+              text,
+              count=1,
+              flags=re.S,
+          )
+
+          # Keep Portfolio WIP as plain text everywhere, never a link.
+          text = re.sub(
+              r'<a href="https://www\.lydiehero\.com/"[^>]*>Portfolio\s*<span class="wip-badge">WIP</span>\s*↗</a>',
+              '<span>Portfolio <span class="wip-badge">WIP</span></span>',
+              text,
+          )
+          text = re.sub(
+              r'<a href="https://www\.lydiehero\.com/"[^>]*>lydiehero\.com\s*<span class="wip-badge">WIP</span>\s*↗</a>',
+              'Portfolio <span class="wip-badge">WIP</span>',
+              text,
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Remove temporary workflow and commit
+        run: |
+          git rm .github/workflows/update-resume.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add index.html
+          git commit -m "Replace résumé download and simplify page"
+          git push
