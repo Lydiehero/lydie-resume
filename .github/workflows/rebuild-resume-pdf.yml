@@ -1,0 +1,57 @@
+name: Rebuild verified resume PDF
+
+on:
+  push:
+    paths:
+      - '.github/workflows/rebuild-resume-pdf.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild and verify PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat resume-pdf/part-* > /tmp/resume.b64
+          test "$(wc -c < /tmp/resume.b64)" -eq 50928
+          base64 --decode /tmp/resume.b64 > /tmp/Lydie-Ayrault-2026.pdf
+          test "$(wc -c < /tmp/Lydie-Ayrault-2026.pdf)" -eq 38194
+          echo "d162edea61fab588e2bd71692136c4983634ea4a70850c312faf2ac71f634f30  /tmp/Lydie-Ayrault-2026.pdf" | sha256sum -c -
+          test "$(head -c 5 /tmp/Lydie-Ayrault-2026.pdf)" = "%PDF-"
+          tail -c 128 /tmp/Lydie-Ayrault-2026.pdf | grep -q '%%EOF'
+          cp /tmp/Lydie-Ayrault-2026.pdf Lydie-Ayrault-2026.pdf
+          cp /tmp/Lydie-Ayrault-2026.pdf Lydie-Ayrault.pdf
+
+      - name: Cache-bust the download link
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          text = text.replace('href="Lydie-Ayrault-2026.pdf"', 'href="Lydie-Ayrault-2026.pdf?v=20260824-final"')
+          text = text.replace('href="Lydie-Ayrault-2026.pdf?v=20260824-final?v=20260824-final"', 'href="Lydie-Ayrault-2026.pdf?v=20260824-final"')
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Clean temporary files and record verification
+        shell: bash
+        run: |
+          printf 'size 38194\nsha256 d162edea61fab588e2bd71692136c4983634ea4a70850c312faf2ac71f634f30\nstarts_pdf True\nhas_eof True\npages 2\n' > pdf-check.txt
+          rm -rf resume-pdf .tmp
+          rm -f .github/workflows/rebuild-resume-pdf.yml
+
+      - name: Commit verified PDF
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Replace corrupted resume PDF with verified file"
+          git push
