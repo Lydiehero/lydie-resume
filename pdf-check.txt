@@ -1,0 +1,6 @@
+size 16998
+sha256 96be835082cf51dedbb73b62ae38dc906dab534b9c05ae34fd11730bd5412d33
+starts_pdf True
+has_eof False
+pages_marker_count 0
+Lydie-Ayrault.pdf: PDF document, version 1.7
