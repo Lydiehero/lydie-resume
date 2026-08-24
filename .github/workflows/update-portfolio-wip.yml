@@ -34,3 +34,5 @@ jobs:
           git add index.html
           git commit -m "Remove portfolio link and keep WIP label"
           git push
+
+# trigger update
