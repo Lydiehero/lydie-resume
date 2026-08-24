@@ -1,0 +1,29 @@
+name: Check resume PDF
+on:
+  push:
+    paths:
+      - '.github/workflows/check-resume-pdf.yml'
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Inspect PDF
+        run: |
+          set -eux
+          ls -l Lydie-Ayrault.pdf
+          file Lydie-Ayrault.pdf
+          head -c 8 Lydie-Ayrault.pdf | xxd
+          tail -c 16 Lydie-Ayrault.pdf | xxd
+          sha256sum Lydie-Ayrault.pdf
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('Lydie-Ayrault.pdf')
+          b=p.read_bytes()
+          print('size', len(b))
+          print('starts_pdf', b.startswith(b'%PDF-'))
+          print('has_eof', b.rstrip().endswith(b'%%EOF'))
+          print('pages_marker_count', b.count(b'/Type/Page'))
+          PY
