@@ -1,0 +1,63 @@
+name: Install spacing-reviewed resume PDF
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-spacing-reviewed-resume.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rebuild and verify exact PDF
+        shell: bash
+        run: |
+          set -euo pipefail
+          cat _newcv/part0.txt _newcv/part1.txt _newcv/part2.txt _newcv/part3.txt _newcv/part4.txt _newcv/part5.txt > /tmp/resume.b64
+          test "$(wc -c < /tmp/resume.b64)" -eq 89772
+          base64 --decode /tmp/resume.b64 > /tmp/Lydie-Ayrault-2026.pdf
+          test "$(wc -c < /tmp/Lydie-Ayrault-2026.pdf)" -eq 67327
+          echo "dbe0e96fba90e9249f20a7f68bf02c6a042cbde2a38257342a3f155d10767962  /tmp/Lydie-Ayrault-2026.pdf" | sha256sum -c -
+          test "$(head -c 5 /tmp/Lydie-Ayrault-2026.pdf)" = "%PDF-"
+          tail -c 128 /tmp/Lydie-Ayrault-2026.pdf | grep -q '%%EOF'
+          cp /tmp/Lydie-Ayrault-2026.pdf Lydie-Ayrault-2026.pdf
+          cp /tmp/Lydie-Ayrault-2026.pdf Lydie-Ayrault.pdf
+
+      - name: Update download link
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('index.html')
+          text = p.read_text(encoding='utf-8')
+          text = re.sub(
+              r'href="Lydie-Ayrault-2026\.pdf(?:\?[^\"]*)?"',
+              'href="Lydie-Ayrault-2026.pdf?v=20260824-spacing-reviewed"',
+              text,
+          )
+          p.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Record verification and clean staging
+        shell: bash
+        run: |
+          printf 'size 67327\nsha256 dbe0e96fba90e9249f20a7f68bf02c6a042cbde2a38257342a3f155d10767962\nstarts_pdf True\nhas_eof True\npages 2\nsource spacing-reviewed upload 2026-08-24\n' > pdf-check.txt
+          rm -rf _newcv _staging resume-pdf .tmp
+          rm -f .github/workflows/rebuild-resume-pdf.yml
+          rm -f .github/workflows/check-resume-pdf.yml
+          rm -f .github/workflows/install-spacing-reviewed-resume.yml
+
+      - name: Commit verified PDF
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Replace resume with spacing-reviewed PDF"
+          git push
